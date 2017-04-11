@@ -5,9 +5,11 @@ Created on Fri Feb 24 16:58:44 2017
 @author: t.lawson
 """
 
+PORT = 6 # Change this to whatever port Windows assigns to your device
+
 import GMHstuff as GMH
 
-GFTB200 = GMH.GMH_Sensor(6, demo = False)
+GFTB200 = GMH.GMH_Sensor(PORT, demo = False)
 print '\nSensor info:\n',GFTB200.info,'\n'
 T = GFTB200.Measure('T')
 print T[0],T[1]
