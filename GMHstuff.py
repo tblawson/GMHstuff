@@ -77,8 +77,8 @@ class GMH_Sensor():
    
     def GetSensorInfo(self):
         """
-        Interrogates GMH sensor.
-        Returns a dictionary keyed by measurement string.
+        Interrogate GMH sensor.
+        Return a dictionary keyed by measurement string.
         Values are tuples: (<address>, <measurement unit>),
         where <address> is an int and <measurement unit> is a string.
         """
@@ -110,7 +110,8 @@ class GMH_Sensor():
     def Measure(self, meas):
         """
         Measure either temperature, pressure or %RH, based on parameter meas.
-        Returns a tuple: (<Temperature/Pressure/RH as int>, <unit as string>)
+        meas can be one of:'T', 'P', 'RH', 'T_dew', 'T_wb', 'H_abs' or 'H_atm'.
+        Return a tuple: (<Temperature/Pressure/RH as int>, <unit as string>)
         """
         Address = self.info[self.meas_alias[meas]][0]
         Addr = ct.c_short(Address)
