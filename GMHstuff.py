@@ -114,5 +114,5 @@ class GMH_Sensor():
         """
         Address = self.info[self.meas_alias[meas]][0]
         Addr = ct.c_short(Address)
-        self.transmit(Addr,self.ValFn)
+        self.Transmit(Addr,self.ValFn)
         return (self.flData.value, self.info[self.meas_alias[meas]][1])
