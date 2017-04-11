@@ -42,7 +42,7 @@ class GMH_Sensor():
                           'H_abs':'Absolute Humidity'}
         self.c_error_msg.value
         self.error_msg = ''
-        self.Open()
+        self.error_code = self.Open()
         self.info = self.GetSensorInfo()
 
 
@@ -50,14 +50,14 @@ class GMH_Sensor():
         if self.demo == True:
             return 1
         else:  
-            err_code = ct.c_int16(GMHLIB.GMH_OpenCom(self.port))
-            self.error_code = ct.c_int16(err_code.value + self.c_lang_offset.value)
-            GMHLIB.GMH_GetErrorMessageRet(self.error_code, ct.byref(self.c_error_msg))
-            if err_code.value < 0:
+            c_err_code = ct.c_int16(GMHLIB.GMH_OpenCom(self.port))
+            self.c_error_code = ct.c_int16(c_err_code.value + self.c_lang_offset.value)
+            GMHLIB.GMH_GetErrorMessageRet(self.c_error_code, ct.byref(self.c_error_msg))
+            if c_err_code.value < 0:
                 self.error_msg += self.c_error_msg.value
             
             print 'open() port', self.port,'...', self.error_msg
-            return err_code.value
+            return self.c_error_code.value
  
        
     def Close(self):
