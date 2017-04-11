@@ -40,7 +40,6 @@ class GMH_Sensor():
                           'T_wb':'Wet Bulb Temperature',
                           'H_atm':'Atmospheric Humidity',
                           'H_abs':'Absolute Humidity'}
-        self.c_error_msg.value
         self.error_msg = ''
         self.error_code = self.Open()
         self.info = self.GetSensorInfo()
@@ -77,10 +76,10 @@ class GMH_Sensor():
         else:
             err_code = GMHLIB.GMH_Transmit(Addr,Func,ct.byref(self.c_Prio),ct.byref(self.c_flData),ct.byref(self.c_intData))
             
-            self.error_code = ct.c_int16(err_code + self.c_lang_offset.value)
-            GMHLIB.GMH_GetErrorMessageRet(self.error_code, ct.byref(self.c_error_msg))
+            self.c_error_code = ct.c_int16(err_code + self.c_lang_offset.value)
+            GMHLIB.GMH_GetErrorMessageRet(self.c_error_code, ct.byref(self.c_error_msg))
 
-            return self.error_code.value
+            return self.c_error_code.value
  
    
     def GetSensorInfo(self):
@@ -96,20 +95,20 @@ class GMH_Sensor():
         units = [] # E.g. 'deg C', 'hPascal', '%RH',...
         
         for Address in range(1,100):
-            Addr = ct.c_short(Address)
-            self.error_code = self.Transmit(Addr,self.c_MeasFn) # Writes result to self.c_intData
+            c_Addr = ct.c_short(Address)
+            self.error_code = self.Transmit(c_Addr,self.c_MeasFn) # Writes result to self.c_intData
             if self.c_intData.value == 0:
                 break # Bail-out if we run out of measurement functions
             addresses.append(Address)
     
-            meas_code = ct.c_int16(self.c_intData.value + self.c_lang_offset.value)
-            GMHLIB.GMH_GetMeasurement(meas_code, ct.byref(self.c_meas_str)) # Writes result to self.c_meas_str
+            c_meas_code = ct.c_int16(self.c_intData.value + self.c_lang_offset.value)
+            GMHLIB.GMH_GetMeasurement(c_meas_code, ct.byref(self.c_meas_str)) # Writes result to self.c_meas_str
             measurements.append(self.c_meas_str.value)
     
-            self.Transmit(Addr,self.c_UnitFn) # Writes result to self.c_intData
+            self.Transmit(c_Addr,self.c_UnitFn) # Writes result to self.c_intData
                                      
-            unit_code = ct.c_int16(self.c_intData.value + self.c_lang_offset.value)
-            GMHLIB.GMH_GetUnit(unit_code, ct.byref(self.c_unit_str)) # Writes result to self.c_unit_str
+            c_unit_code = ct.c_int16(self.c_intData.value + self.c_lang_offset.value)
+            GMHLIB.GMH_GetUnit(c_unit_code, ct.byref(self.c_unit_str)) # Writes result to self.c_unit_str
             units.append(self.c_unit_str.value)
 
         return dict(zip(measurements,zip(addresses,units)))
@@ -117,8 +116,9 @@ class GMH_Sensor():
 
     def Measure(self, meas):
         """
-        Measure either temperature, pressure or %RH, based on parameter meas.
+        Measure parameter meas (temperature, pressure or humidity).
         Returns a tuple: (<Temperature/Pressure/RH as int>, <unit as string>)
+        meas is one of: 'T', 'P', 'RH', 'T_dew', 't_wb', 'H_atm' or 'H_abs'.
         """
         if len(self.info)==0:
             print 'Measure(): No measurements available! - Check sensor is connected and ON.'
