@@ -8,8 +8,7 @@ Created on Fri Feb 24 16:58:44 2017
 import GMHstuff as GMH
 
 GFTB200 = GMH.GMH_Sensor(6, demo = False)
-print GFTB200.info,'\n'
-
+print '\nSensor info:\n',GFTB200.info,'\n'
 T = GFTB200.Measure('T')
 print T[0],T[1]
 P = GFTB200.Measure('P')
@@ -25,4 +24,4 @@ print H_abs[0],H_abs[1]
 H_atm = GFTB200.Measure('H_atm')
 print H_atm[0],H_atm[1]
 
-GFTB200.close()
+GFTB200.Close()
