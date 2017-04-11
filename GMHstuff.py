@@ -14,6 +14,7 @@ os.environ['GMHPATH'] = 'C:\Documents and Settings\\t.lawson\My Documents\Python
 gmhpath = os.environ['GMHPATH']
 GMHLIB = ct.windll.LoadLibrary(os.path.join(gmhpath,'GMH3x32E'))
 
+
 class GMH_Sensor():
     """
     A class to wrap around the low-level functions of GMH3x32E.dll. 
@@ -22,16 +23,16 @@ class GMH_Sensor():
     def __init__(self,port,demo = True):
         self.demo = demo
         self.port = port # COM port of USB 3100N adapter cable
-        self.Prio = ct.c_short()
-        self.flData = ct.c_double()
-        self.intData = ct.c_long()
-        self.meas_str = ct.create_string_buffer(30)
-        self.unit_str = ct.create_string_buffer(10)
-        self.lang_offset = ct.c_int16(4096) # English language-offset
-        self.MeasFn = ct.c_short(180) # GetMeasCode()
-        self.UnitFn = ct.c_int16(178) # GetUnitCode()
-        self.ValFn = ct.c_short(0) # GetValue()
-        self.error_msg = ct.create_string_buffer(70)
+        self.c_Prio = ct.c_short()
+        self.c_flData = ct.c_double()
+        self.c_intData = ct.c_long()
+        self.c_meas_str = ct.create_string_buffer(30)
+        self.c_unit_str = ct.create_string_buffer(10)
+        self.c_lang_offset = ct.c_int16(4096) # English language-offset
+        self.c_MeasFn = ct.c_short(180) # GetMeasCode()
+        self.c_UnitFn = ct.c_int16(178) # GetUnitCode()
+        self.c_ValFn = ct.c_short(0) # GetValue()
+        self.c_error_msg = ct.create_string_buffer(70)
         self.meas_alias = {'T':'Temperature',
                           'P':'Absolute Pressure',
                           'RH':'Rel. Air Humidity',
@@ -39,6 +40,8 @@ class GMH_Sensor():
                           'T_wb':'Wet Bulb Temperature',
                           'H_atm':'Atmospheric Humidity',
                           'H_abs':'Absolute Humidity'}
+        self.c_error_msg.value
+        self.error_msg = ''
         self.Open()
         self.info = self.GetSensorInfo()
 
@@ -47,9 +50,14 @@ class GMH_Sensor():
         if self.demo == True:
             return 1
         else:  
-            err_code = GMHLIB.GMH_OpenCom(self.port)
-            print 'open() port', self.port,'Return code:',err_code
-            return err_code
+            err_code = ct.c_int16(GMHLIB.GMH_OpenCom(self.port))
+            self.error_code = ct.c_int16(err_code.value + self.c_lang_offset.value)
+            GMHLIB.GMH_GetErrorMessageRet(self.error_code, ct.byref(self.c_error_msg))
+            if err_code.value < 0:
+                self.error_msg += self.c_error_msg.value
+            
+            print 'open() port', self.port,'...', self.error_msg
+            return err_code.value
  
        
     def Close(self):
@@ -67,18 +75,18 @@ class GMH_Sensor():
         if self.demo == True:
             return 1
         else:
-            err_code = GMHLIB.GMH_Transmit(Addr,Func,ct.byref(self.Prio),ct.byref(self.flData),ct.byref(self.intData))
+            err_code = GMHLIB.GMH_Transmit(Addr,Func,ct.byref(self.c_Prio),ct.byref(self.c_flData),ct.byref(self.c_intData))
             
-            self.error_code = ct.c_int16(err_code + self.lang_offset.value)
-            GMHLIB.GMH_GetErrorMessageRet(self.error_code, ct.byref(self.error_msg))
+            self.error_code = ct.c_int16(err_code + self.c_lang_offset.value)
+            GMHLIB.GMH_GetErrorMessageRet(self.error_code, ct.byref(self.c_error_msg))
 
             return self.error_code.value
  
    
     def GetSensorInfo(self):
         """
-        Interrogate GMH sensor.
-        Return a dictionary keyed by measurement string.
+        Interrogates GMH sensor.
+        Returns a dictionary keyed by measurement string.
         Values are tuples: (<address>, <measurement unit>),
         where <address> is an int and <measurement unit> is a string.
         """
@@ -89,20 +97,20 @@ class GMH_Sensor():
         
         for Address in range(1,100):
             Addr = ct.c_short(Address)
-            self.error_code = self.Transmit(Addr,self.MeasFn) # Writes result to self.intData
-            if self.intData.value == 0:
+            self.error_code = self.Transmit(Addr,self.c_MeasFn) # Writes result to self.c_intData
+            if self.c_intData.value == 0:
                 break # Bail-out if we run out of measurement functions
             addresses.append(Address)
     
-            meas_code = ct.c_int16(self.intData.value + self.lang_offset.value)
-            GMHLIB.GMH_GetMeasurement(meas_code, ct.byref(self.meas_str)) # Writes result to self.meas_str
-            measurements.append(self.meas_str.value)
+            meas_code = ct.c_int16(self.c_intData.value + self.c_lang_offset.value)
+            GMHLIB.GMH_GetMeasurement(meas_code, ct.byref(self.c_meas_str)) # Writes result to self.c_meas_str
+            measurements.append(self.c_meas_str.value)
     
-            self.Transmit(Addr,self.UnitFn) # Writes result to self.intData
+            self.Transmit(Addr,self.c_UnitFn) # Writes result to self.c_intData
                                      
-            unit_code = ct.c_int16(self.intData.value + self.lang_offset.value)
-            GMHLIB.GMH_GetUnit(unit_code, ct.byref(self.unit_str)) # Writes result to self.unit_str
-            units.append(self.unit_str.value)
+            unit_code = ct.c_int16(self.c_intData.value + self.c_lang_offset.value)
+            GMHLIB.GMH_GetUnit(unit_code, ct.byref(self.c_unit_str)) # Writes result to self.c_unit_str
+            units.append(self.c_unit_str.value)
 
         return dict(zip(measurements,zip(addresses,units)))
 
@@ -110,10 +118,13 @@ class GMH_Sensor():
     def Measure(self, meas):
         """
         Measure either temperature, pressure or %RH, based on parameter meas.
-        meas can be one of:'T', 'P', 'RH', 'T_dew', 'T_wb', 'H_abs' or 'H_atm'.
-        Return a tuple: (<Temperature/Pressure/RH as int>, <unit as string>)
+        Returns a tuple: (<Temperature/Pressure/RH as int>, <unit as string>)
         """
-        Address = self.info[self.meas_alias[meas]][0]
-        Addr = ct.c_short(Address)
-        self.Transmit(Addr,self.ValFn)
-        return (self.flData.value, self.info[self.meas_alias[meas]][1])
+        if len(self.info)==0:
+            print 'Measure(): No measurements available! - Check sensor is connected and ON.'
+            return (0,'')
+        else:
+            Address = self.info[self.meas_alias[meas]][0]
+            Addr = ct.c_short(Address)
+            self.Transmit(Addr,self.c_ValFn)
+            return (self.c_flData.value, self.info[self.meas_alias[meas]][1])
