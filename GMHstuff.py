@@ -44,6 +44,7 @@ class GMH_Sensor():
         self.error_msg = ''
         try:
             self.error_code = self.Open()
+            print('error_code: {}, error_msg: {}').format(self.error_code, self.error_msg)
             assert(self.error_code > 0), self.error_msg
             assert(self.error_code >= 0), self.error_msg
         except AssertionError as msg:
@@ -141,10 +142,10 @@ class GMH_Sensor():
         meas is one of: 'T', 'P', 'RH', 'T_dew', 't_wb', 'H_atm' or 'H_abs'.
         """
         if len(self.info) == 0:
-            print 'Measure(): No measurements available! - Check sensor is connected and ON.'
+            print('Measure(): No measurements available! - Check sensor is connected and ON.')
             return (0, 'NO_UNIT')
         if self.meas_alias[meas] not in self.info.keys():
-            print 'Function', meas, 'not available!'
+            print('Function', meas, 'not available!')
             return (0, 'NO_UNIT')
         else:
             Address = self.info[self.meas_alias[meas]][0]
