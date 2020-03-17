@@ -44,7 +44,6 @@ class GMH_Sensor():
         self.error_msg = ''
         try:
             self.error_code = self.Open()
-            print('error_code: {}, error_msg: {}').format(self.error_code, self.error_msg)
             assert(self.error_code > 0), self.error_msg
             assert(self.error_code >= 0), self.error_msg
         except AssertionError as msg:
@@ -67,7 +66,8 @@ class GMH_Sensor():
             c_rtn_code = ct.c_int16(GMHLIB.GMH_OpenCom(self.port))
             c_translated_rtn_code = ct.c_int16(c_rtn_code.value + self.c_lang_offset.value)
             GMHLIB.GMH_GetErrorMessageRet(c_translated_rtn_code, ct.byref(self.c_error_msg))
-            # self.error_msg = self.c_error_msg.value
+            self.error_msg = self.c_error_msg.value
+            print(self.error_msg)
             return c_translated_rtn_code.value
 
     def Close(self):
