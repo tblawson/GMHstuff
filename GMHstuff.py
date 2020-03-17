@@ -9,8 +9,7 @@ Created on Wed Jul 29 13:21:22 2015
 import os
 import ctypes as ct
 
-# Change PATH to wherever you've put GMH3x32E.dll:
-
+# Change PATH to wherever you keep GMH3x32E.dll:
 gmhlibpath = 'I:\MSL\Private\Electricity\Ongoing\OHM\Temperature_PRTs\GMHdll'
 os.environ['GMHPATH'] = gmhlibpath
 GMHpath = os.environ['GMHPATH']
@@ -43,26 +42,32 @@ class GMH_Sensor():
                            'H_atm': 'Atmospheric Humidity',
                            'H_abs': 'Absolute Humidity'}
         self.error_msg = ''
-        self.error_code = self.Open()
+        try:
+            self.error_code = self.Open()
+            assert(self.error_code > 0), self.error_msg
+            assert(self.error_code >= 0), self.error_msg
+        except AssertionError as msg:
+            print(msg)
         self.info = self.GetSensorInfo()
 
     def Open(self):
+        """
+        Open a single communication channel to a GMH sensor.
+        Only one GMH sensor can be open at a time.
+
+        :return: Any positive value indicates success;
+        A return of 0 means the sensor is in demo mode and any 'reading' is fake data.
+        Any negative value indicates failure to open.
+        """
+
         if self.demo is True:
-            return 1
+            return 0
         else:
-            c_err_code = ct.c_int16(GMHLIB.GMH_OpenCom(self.port))
-            if c_err_code.value >= 0:
-                c_err_code = ct.c_int16(0)  # Any pos value = SUCCESS
-            self.c_error_code = ct.c_int16(c_err_code.value +
-                                           self.c_lang_offset.value)
-
-            GMHLIB.GMH_GetErrorMessageRet(self.c_error_code,
-                                          ct.byref(self.c_error_msg))
-
-            self.error_msg += self.c_error_msg.value
-
-            print'open() port', self.port, '...\n', self.c_error_code.value, self.error_msg
-            return self.c_error_code.value
+            c_rtn_code = ct.c_int16(GMHLIB.GMH_OpenCom(self.port))
+            c_translated_rtn_code = ct.c_int16(c_rtn_code.value + self.c_lang_offset.value)
+            GMHLIB.GMH_GetErrorMessageRet(c_translated_rtn_code, ct.byref(self.c_error_msg))
+            # self.error_msg = self.c_error_msg.value
+            return c_translated_rtn_code.value
 
     def Close(self):
         if self.demo is True:
