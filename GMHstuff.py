@@ -34,6 +34,9 @@ class GMH_Sensor():
         self.c_UnitFn = ct.c_int16(178)  # GetUnitCode()
         self.c_ValFn = ct.c_short(0)  # GetValue()
         self.c_error_msg = ct.create_string_buffer(70)
+        self.error_msg = '-'
+        self.error_code = 0
+        self.is_open = False
         self.meas_alias = {'T': 'Temperature',
                            'P': 'Absolute Pressure',
                            'RH': 'Rel. Air Humidity',
@@ -41,38 +44,43 @@ class GMH_Sensor():
                            'T_wb': 'Wet Bulb Temperature',
                            'H_atm': 'Atmospheric Humidity',
                            'H_abs': 'Absolute Humidity'}
-        self.error_msg = ''
-        try:
-            self.error_code = self.Open()
-            assert(self.error_code > 0), self.error_msg
-            assert(self.error_code >= 0), self.error_msg
-        except AssertionError as msg:
-            print(msg)
-        self.info = self.GetSensorInfo()
 
     def Open(self):
         """
         Open a single communication channel to a GMH sensor.
         Only one GMH sensor can be open at a time.
 
-        :return: Any positive value indicates success;
-        A return of 0 means the sensor is in demo mode and any 'reading' is fake data.
+        :return: 1 for success, -1 for failure.
+        0 means sensor is in demo mode and any 'reading' is fake data.
         Any negative value indicates failure to open.
         """
 
         if self.demo is True:
+            print('Open(): demo is True; rtn=0')
+            self.is_open = False
             return 0
         else:
-            c_rtn_code = ct.c_int16(GMHLIB.GMH_OpenCom(self.port))
-            c_translated_rtn_code = ct.c_int16(c_rtn_code.value + self.c_lang_offset.value)
-            GMHLIB.GMH_GetErrorMessageRet(c_translated_rtn_code, ct.byref(self.c_error_msg))
-            self.error_msg = self.c_error_msg.value
-            print(self.error_msg)
-            return c_translated_rtn_code.value
+            try:
+                c_rtn_code = ct.c_int16(GMHLIB.GMH_OpenCom(self.port))
+                c_translated_rtn_code = ct.c_int16(c_rtn_code.value + self.c_lang_offset.value)
+                GMHLIB.GMH_GetErrorMessageRet(c_translated_rtn_code, ct.byref(self.c_error_msg))
+                self.error_msg = self.c_error_msg.value
+                print('GMH_OpenCom() c_rtn_code =', c_rtn_code.value)
+                assert c_rtn_code.value >= 0, 'GMHLIB.GMH_OpenCom() failed'
+            except AssertionError as msg:
+                print(msg, 'with rtn_code', c_rtn_code.value, self.error_msg)
+                self.is_open = False
+                return -1
+            else:
+                self.error_msg = self.c_error_msg.value
+                # print('Open(): demo is False; rtn=', c_rtn_code.value, self.error_msg)
+                self.error_code = c_rtn_code.value
+                self.is_open = True
+                return 1
 
     def Close(self):
         if self.demo is True:
-            return 1
+            pass
         else:
             GMHLIB.GMH_CloseCom()
         return 1
@@ -85,15 +93,15 @@ class GMH_Sensor():
         if self.demo is True:
             return 1
         else:
-            err_code = GMHLIB.GMH_Transmit(Addr, Func, ct.byref(self.c_Prio),
+            rtn_code = GMHLIB.GMH_Transmit(Addr, Func, ct.byref(self.c_Prio),
                                            ct.byref(self.c_flData),
                                            ct.byref(self.c_intData))
 
-            self.c_error_code = ct.c_int16(err_code + self.c_lang_offset.value)
-            GMHLIB.GMH_GetErrorMessageRet(self.c_error_code,
+            c_translated_rtn_code = ct.c_int16(rtn_code + self.c_lang_offset.value)
+            GMHLIB.GMH_GetErrorMessageRet(c_translated_rtn_code,
                                           ct.byref(self.c_error_msg))
 
-            return self.c_error_code.value
+            return rtn_code
 
     def GetSensorInfo(self):
         """
@@ -121,7 +129,7 @@ class GMH_Sensor():
 
             # Write result to self.c_meas_str:
             GMHLIB.GMH_GetMeasurement(c_meas_code, ct.byref(self.c_meas_str))
-            measurements.append(self.c_meas_str.value)
+            measurements.append(self.c_meas_str.value.decode('ISO-8859-1'))
 
             # Write result to self.c_intData:
             self.Transmit(c_Addr, self.c_UnitFn)
@@ -131,9 +139,10 @@ class GMH_Sensor():
 
             # Write result to self.c_unit_str:
             GMHLIB.GMH_GetUnit(c_unit_code, ct.byref(self.c_unit_str))
-            units.append(self.c_unit_str.value)
+            units.append(self.c_unit_str.value.decode('ISO-8859-1'))
 
-        return dict(zip(measurements, zip(addresses, units)))
+        self.info = dict(zip(measurements, zip(addresses, units)))
+        return self.info
 
     def Measure(self, meas):
         """
