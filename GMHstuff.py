@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
 """
+GMHstuff.py - required to access dll functions for GMH probes
 Created on Wed Jul 29 13:21:22 2015
 
 @author: t.lawson
 """
-# GMHstuff.py - required to access dll functions for GMH probes
 
 import os
 import ctypes as ct
 
-# Change PATH to wherever you keep GMH3x32E.dll: os.path.join('C:', 'Users', 't.lawson', 'PycharmProjects', 'GMHstuff2')
+
+# os.path.join('C:', 'Users', 't.lawson', 'PycharmProjects', 'GMHstuff2')
+# Change PATH to wherever you keep GMH3x32E.dll:
 gmhlibpath = 'I:/MSL/Private/Electricity/Ongoing/OHM/Temperature_PRTs/GMHdll'
 os.environ['GMHPATH'] = gmhlibpath
 GMHpath = os.environ['GMHPATH']
@@ -53,6 +55,7 @@ class GMH_Sensor():
         self.c_intData = ct.c_long()
         self.c_meas_str = ct.create_string_buffer(30)
         self.c_unit_str = ct.create_string_buffer(10)
+        self.c_type_str = ct.create_string_buffer(30)
 
         self.c_error_msg = ct.create_string_buffer(70)
         self.error_msg = '-'
@@ -172,6 +175,7 @@ class GMH_Sensor():
         where <address> is an int and <measurement unit> is a (unicode) string.
         """
 
+        types = []  # sensor type
         channels = []  # Between 1 and 99
         measurements = []  # E.g. 'Temperature', 'Absolute Pressure', ...
         units = []  # E.g. 'deg C', 'hPascal', ...
@@ -179,6 +183,13 @@ class GMH_Sensor():
         if self.demo is True:  # Either COM port not open and/or sensor is missing/turned off
             return {'NO SENSOR': (0, 'NO UNIT')}
         else:  # Fully-operational
+
+            self.error_code = self.transmit(1, TRANSMIT_CALLS['GetType'])
+            c_translated_type_code = ct.c_int16(self.c_intData.value + C_LANG_OFFSET.value)
+            GMHLIB.GMH_GetType(c_translated_type_code, ct.byref(self.c_type_str))
+            type = self.c_type_str.value.decode('ISO-8859-1')
+            print('get_sensor_info(): Sensor type = {}'.format(type))
+
             # Get number of measurement channels for this instrument. Write result to self.c_intData:
             self.error_code = self.transmit(1, TRANSMIT_CALLS['GetChannelCount'])
             chan_count = self.c_intData.value
@@ -239,4 +250,7 @@ class GMH_Sensor():
             channel = self.info[MEAS_ALIAS[meas]][0]
             c_chan = ct.c_short(channel)
             self.transmit(c_chan, TRANSMIT_CALLS['GetValue'])
-            return (self.c_flData.value, self.info[MEAS_ALIAS[meas]][1])
+            return self.c_flData.value, self.info[MEAS_ALIAS[meas]][1]
+
+    def get_type(self):
+        pass

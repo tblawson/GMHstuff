@@ -28,19 +28,5 @@ for q in GMH.MEAS_ALIAS.keys():
 
     print('{:>20}{:>10}{:>15}{:>15}'.format(quantity, val, info_unit, meas_unit))
 
-# T = GFTB200.measure('T')
-# print(T[0], T[1])
-# P = GFTB200.measure('P')
-# print(P[0], P[1])
-# RH = GFTB200.measure('RH')
-# print(RH[0], RH[1])
-# T_dew = GFTB200.measure('T_dew')
-# print(T_dew[0], T_dew[1])
-# T_wb = GFTB200.measure('T_wb')
-# print(T_wb[0], T_wb[1])
-# H_abs = GFTB200.measure('H_abs')
-# print(H_abs[0], H_abs[1])
-# H_atm = GFTB200.measure('H_atm')
-# print(H_atm[0], H_atm[1])
 
 GFTB200.Close()
