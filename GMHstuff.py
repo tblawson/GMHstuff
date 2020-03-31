@@ -18,7 +18,7 @@ GMHpath = os.environ['GMHPATH']
 GMHLIB = ct.windll.LoadLibrary(os.path.join('GMHdll', 'GMH3x32E'))  # (os.path.join(GMHpath, 'GMH3x32E'))
 
 # A (useful) subset of Transmit() function calls:
-TRANSMIT_CALLS = {'GetValue': 0, 'GetStatus': 3, 'GetType': 12, 'GetMinRange': 176, 'GetMaxRange': 177,
+TRANSMIT_CALLS = {'GetValue': 0, 'GetStatus': 3, 'GetTypeCode': 12, 'GetMinRange': 176, 'GetMaxRange': 177,
                   'GetUnitCode': 178, 'GetMeasCode': 180, 'GetDispMinRange': 200, 'GetDispMaxRange': 201,
                   'GetDispUnitCode': 202, 'GetDispDecPoint': 204, 'GetChannelCount': 208, 'GetPowerOffTime': 222,
                   'SetPowerOffTime': 223, 'GetSoftwareInfo': 254}
@@ -50,18 +50,24 @@ class GMH_Sensor():
         """
         self.demo = demo
         self.port = port
+        self.com_open = False
+        self.error_msg = '-'
+        self.status_msg = '-'
+        self.error_code = 0
+        self.type_str = '-'
+        self.chan_count = 0
+
+        # All ctypes objects have a c_ suffix:
         self.c_Prio = ct.c_short()
         self.c_flData = ct.c_double()
         self.c_intData = ct.c_long()
         self.c_meas_str = ct.create_string_buffer(30)
         self.c_unit_str = ct.create_string_buffer(10)
         self.c_type_str = ct.create_string_buffer(30)
-
+        self.c_status_msg = ct.create_string_buffer(70)
         self.c_error_msg = ct.create_string_buffer(70)
-        self.error_msg = '-'
-        self.status_msg = '-'
-        self.error_code = 0
-        self.com_open = False
+
+        self.info = {}
 
     def rtncode_to_errmsg(self, rtn_code):
         """
@@ -78,20 +84,20 @@ class GMH_Sensor():
             string (Unicode)
         """
         c_msg = ct.create_string_buffer(70)
-        c_status = ct.create_string_buffer(70)
+        # c_status = ct.create_string_buffer(70)
         c_translated_code = ct.c_int16(rtn_code + C_LANG_OFFSET.value)
         GMHLIB.GMH_GetErrorMessageRet(c_translated_code, ct.byref(c_msg))
-        GMHLIB.GMH_GetStatusMessage(c_translated_code, ct.byref(c_status))
+        # GMHLIB.GMH_GetStatusMessage(c_translated_code, ct.byref(c_status))
         msg = c_msg.value.decode('ISO-8859-1')
-        status = c_status.value.decode('ISO-8859-1')
+        # status = c_status.value.decode('ISO-8859-1')
         if 'EASYBus' in msg:
-            return ('OK.', status)
+            return 'OK.'  # , status)
         else:
-            return (msg, status)
+            return msg  # , status)
 
-    def open(self):
+    def open_port(self):
         """
-        Open a single COM channel to a 3100N GMH adapter cable.
+        Open a single COM port for a 3100N GMH adapter cable.
 
         Only one COM port can be open at a time. Up to 5 GMH devices can be serviced through
         one COM port (but requires special hardware fan-out).
@@ -99,32 +105,24 @@ class GMH_Sensor():
         :returns:
             1 for success,
             -1 for failure.
-            0 means sensor is in demo mode and any 'reading' is fake data.
         """
-
-        if self.demo is True:
-            print('Open(): demo is True; rtn=0')
+        try:
+            c_rtn_code = ct.c_int16(GMHLIB.GMH_OpenCom(self.port))
+            self.error_code = c_rtn_code.value
+            self.error_msg = self.rtncode_to_errmsg(c_rtn_code.value)
+            assert self.error_code >= 0, 'GMHLIB.GMH_OpenCom() failed'
+        except AssertionError as msg:
+            print('open_port()_except:', msg, '{} "{}"'.format(self.error_code, self.error_msg))
             self.com_open = False
-            return 0
+            return -1
         else:
-            try:
-                c_rtn_code = ct.c_int16(GMHLIB.GMH_OpenCom(self.port))
-                self.error_code = c_rtn_code.value
-                print('open(): calling rtncode_to_errmsg():', self.rtncode_to_errmsg(c_rtn_code.value))
-                (self.error_msg, self.status_msg) = self.rtncode_to_errmsg(c_rtn_code.value)
-                print('GMH_OpenCom() rtn_code =', self.error_code)
-                assert self.error_code >= 0, 'GMHLIB.GMH_OpenCom() failed -> {} {}'.format(self.error_code,
-                                                                                           self.error_msg)
-            except AssertionError as msg:
-                print('open():', msg)
-                self.com_open = False
-                return -1
-            else:
-                self.error_code = c_rtn_code.value
-                self.com_open = True
-                return 1
+            self.error_code = c_rtn_code.value
+            self.com_open = True
+            # print('open_port(): calling get_sensor_info()...')
+            self.get_sensor_info()
+            return 1
 
-    def Close(self):
+    def close(self):
         """
         Close open COM port (only one).
 
@@ -132,13 +130,13 @@ class GMH_Sensor():
         :returns 1 if successful, -1 otherwise
         """
         if self.com_open is False:
-            pass
+            return 0
         else:
             GMHLIB.GMH_CloseCom()
             self.com_open = False
         return 1
 
-    def transmit(self, chan, func):
+    def transmit(self, c_chan, c_func):
         """
         A wrapper for the GMH general-purpose interrogation function GMH_Transmit().
 
@@ -149,87 +147,131 @@ class GMH_Sensor():
             func: Function-call code (see transmit_calls dict)
         :returns
             1 for success (non-demo mode),
-            0 for success (demo mode),
-            GMHLIB.GMH_Transmit() return code for failure (any negative value).
+            -1 for GMHLIB.GMH_Transmit() failure
         """
-        if self.demo is True:
-            return 0
-        else:
-            self.error_code = GMHLIB.GMH_Transmit(chan, func, ct.byref(self.c_Prio),
+        # if self.demo is True:
+        #     return 0
+        # else:
+        try:
+            self.error_code = GMHLIB.GMH_Transmit(c_chan, c_func, ct.byref(self.c_Prio),
                                                   ct.byref(self.c_flData),
                                                   ct.byref(self.c_intData))
-            (self.error_msg, self.status_msg) = self.rtncode_to_errmsg(self.error_code)
-            # print('transmit():', self.error_code, self.error_msg, '...', self.status_msg)
-            if self.error_code >= 0:
-                return 1
-            else:
-                return self.error_code
+            self.error_msg = self.rtncode_to_errmsg(self.error_code)
+            assert self.error_code >= 0, 'GMH_Transmit({}) failed'.format(c_func)
+        except AssertionError as msg:
+            print('transmit({})_except:'.format(c_func), msg, '{} "{}"'.format(self.error_code, self.error_msg))
+            return -1
+        else:
+            # print('transmit({})_else: GMH_Transmit() return: {} "{}"'.format(c_func, self.error_code,
+            #                                                                  self.error_msg))
+            return 1
+
+    def get_type(self):
+        # Get instrument type code -> self.c_intData:
+        c_chan = ct.c_int16(1)
+        c_func = ct.c_int16(TRANSMIT_CALLS['GetTypeCode'])
+        self.transmit(c_chan, c_func)
+        c_translated_type_code = ct.c_int16(self.c_intData.value + C_LANG_OFFSET.value)
+        # Interpret type code to type string:
+        try:
+            c_rtn_len = ct.c_byte(GMHLIB.GMH_GetType(c_translated_type_code, ct.byref(self.c_type_str)))
+            self.error_code = c_rtn_len.value
+            self.type_str = self.c_type_str.value.decode('ISO-8859-1')
+            assert self.error_code >= 1, 'GMHLIB.GMH_GetType() failed'
+        except AssertionError as msg:
+            print('get_type():', msg, '{} "{}"'.format(self.error_code, self.type_str))
+            self.type_str = 'UNKNOWN instrument type.'
+        else:
+            print('get_type(): Sensor type = {}'.format(self.type_str))
+
+    def get_num_chans(self):
+        # Get number of measurement channels for this instrument -> self.c_intData:
+        c_chan = ct.c_int16(1)
+        c_func = ct.c_int16(TRANSMIT_CALLS['GetChannelCount'])
+        self.error_code = self.transmit(c_chan, c_func)
+        self.chan_count = self.c_intData.value
+        print('get_num_chans(): {} channels found'.format(self.chan_count))
+
+    def get_status(self, chan):
+        # Get instrument status code -> self.c_intData:
+        c_chan = ct.c_int16(chan)
+        c_func = ct.c_int16(TRANSMIT_CALLS['GetStatus'])
+        self.error_code = self.transmit(c_chan, c_func)
+        c_translated_status_code = ct.c_int16(self.c_intData.value + C_LANG_OFFSET.value)
+        # Interpret status code -> status string:
+        GMHLIB.GMH_GetStatusMessage(c_translated_status_code, ct.byref(self.c_status_msg))
+        self.status_msg = self.c_status_msg.value.decode('ISO-8859-1')
 
     def get_sensor_info(self):
         """
         Interrogates GMH sensor for measurement capabilities.
+
+        Only runs if self.info is empty.
 
         :returns
         self.info - a dictionary keyed by measurement string (eg: 'Temperature').
         Values are tuples: (<address>, <measurement unit>),
         where <address> is an int and <measurement unit> is a (unicode) string.
         """
-
-        types = []  # sensor type
         channels = []  # Between 1 and 99
         measurements = []  # E.g. 'Temperature', 'Absolute Pressure', ...
         units = []  # E.g. 'deg C', 'hPascal', ...
+        statuses = []
 
-        if self.demo is True:  # Either COM port not open and/or sensor is missing/turned off
-            return {'NO SENSOR': (0, 'NO UNIT')}
-        else:  # Fully-operational
-
-            self.error_code = self.transmit(1, TRANSMIT_CALLS['GetType'])
-            c_translated_type_code = ct.c_int16(self.c_intData.value + C_LANG_OFFSET.value)
-            GMHLIB.GMH_GetType(c_translated_type_code, ct.byref(self.c_type_str))
-            type = self.c_type_str.value.decode('ISO-8859-1')
-            print('get_sensor_info(): Sensor type = {}'.format(type))
-
-            # Get number of measurement channels for this instrument. Write result to self.c_intData:
-            self.error_code = self.transmit(1, TRANSMIT_CALLS['GetChannelCount'])
-            chan_count = self.c_intData.value
-            print('get_sensor_info(): {} channels found'.format(chan_count))
-
-            channel = 0
-            while channel <= chan_count:
-                print('get_sensor_info(): Verifying channel {}...'.format(channel))
-                c_chan = ct.c_short(channel)
-
-                # Write result to self.c_intData:
-                self.error_code = self.transmit(c_chan, TRANSMIT_CALLS['GetValue'])
-                if self.error_code < 0:
-                    print('get_sensor_info(): {:s}...{:s}'.format(self.error_msg, self.status_msg))
-                    print('get_sensor_info(): No measurement function at channel {}'.format(channel))
-                    channel += 1
-                    continue  # Skip to next channel if this one's a dud
-                else:
-                    self.error_code = self.transmit(c_chan, TRANSMIT_CALLS['GetMeasCode'])
-                    if self.c_intData.value == 0:
-                        channel += 1
-                        continue  # Bail-out if not a valid measurement code
-                    c_translated_meas_code = ct.c_int16(self.c_intData.value + C_LANG_OFFSET.value)
-
-                    # Write result to self.c_meas_str:
-                    GMHLIB.GMH_GetMeasurement(c_translated_meas_code, ct.byref(self.c_meas_str))
-                    measurements.append(self.c_meas_str.value.decode('ISO-8859-1'))
-
-                    # Write result to self.c_intData:
-                    self.transmit(c_chan, TRANSMIT_CALLS['GetUnitCode'])
-                    c_unit_code = ct.c_int16(self.c_intData.value + C_LANG_OFFSET.value)
-
-                    # Write result to self.c_unit_str:
-                    GMHLIB.GMH_GetUnit(c_unit_code, ct.byref(self.c_unit_str))
-                    units.append(self.c_unit_str.value.decode('ISO-8859-1'))
-                    channels.append(channel)
-                    channel += 1
-
-            self.info = dict(zip(measurements, zip(channels, units)))
+        if len(self.info) > 0:  # Device info already determined.
+            print('device info already determined.')
             return self.info
+        else:
+            # Find all channel-independent parameters
+            self.get_type()
+            self.get_num_chans()
+            if self.chan_count == 0:
+                return {'NO SENSOR': (0, 'NO UNIT')}
+            else:
+                # Visit all the channels and note their capabilities:
+                channel = 0
+                while channel <= self.chan_count:
+                    print('\nget_sensor_info(): Testing channel {}...'.format(channel))
+                    c_chan = ct.c_int16(channel)
+                    # Try reading a value, Write result to self.c_intData:
+                    c_func = ct.c_int16(TRANSMIT_CALLS['GetValue'])
+                    self.error_code = self.transmit(c_chan, c_func)
+                    if self.error_code < 0:
+                        print('get_sensor_info(): No measurement function at channel {}'.format(channel))
+                        channel += 1
+                        continue  # Skip to next channel if this one has no value to read
+                    else:  # Successfully got a dummy value
+                        c_func = ct.c_int16(TRANSMIT_CALLS['GetMeasCode'])
+                        self.error_code = self.transmit(c_chan, c_func)
+                        if self.c_intData.value < 0:
+                            print('get_sensor_info(): transmit() failure to get meas code.')
+                            channel += 1
+                            continue  # Bail-out if not a valid measurement code
+
+                        # Now we have a valid measurement code...
+                        c_translated_meas_code = ct.c_int16(self.c_intData.value + C_LANG_OFFSET.value)
+                        # Write result to self.c_meas_str:
+                        GMHLIB.GMH_GetMeasurement(c_translated_meas_code, ct.byref(self.c_meas_str))
+                        measurements.append(self.c_meas_str.value.decode('ISO-8859-1'))
+
+                        # Get instrument status code -> self.c_intData:
+                        self.get_status(channel)
+                        statuses.append(self.status_msg)
+                        # print('get_sensor_info(): Status: {}'.format(self.status_msg))
+
+                        c_func = ct.c_int16(TRANSMIT_CALLS['GetUnitCode'])
+                        self.transmit(c_chan, c_func)
+                        c_unit_code = ct.c_int16(self.c_intData.value + C_LANG_OFFSET.value)
+                        # Write result to self.c_unit_str:
+                        GMHLIB.GMH_GetUnit(c_unit_code, ct.byref(self.c_unit_str))
+                        units.append(self.c_unit_str.value.decode('ISO-8859-1'))
+                        channels.append(channel)
+                        channel += 1
+
+                        self.demo = False  # If we've got this far we must have a fully-functioning instrument.
+                        print('get_sensor_info(): demo mode = {}'.format(self.demo))
+                self.info = dict(zip(measurements, zip(channels, units)))
+                return self.info
 
     def measure(self, meas):
         """
@@ -251,6 +293,3 @@ class GMH_Sensor():
             c_chan = ct.c_short(channel)
             self.transmit(c_chan, TRANSMIT_CALLS['GetValue'])
             return self.c_flData.value, self.info[MEAS_ALIAS[meas]][1]
-
-    def get_type(self):
-        pass
