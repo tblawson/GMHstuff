@@ -315,5 +315,6 @@ class GMHSensor:
         else:
             channel = self._info[MEAS_ALIAS[meas]][0]
             c_chan = ct.c_short(channel)
-            self.transmit(c_chan, TRANSMIT_CALLS['GetValue'])
+            c_func = ct.c_int16(TRANSMIT_CALLS['GetValue'])
+            self.transmit(c_chan, c_func)
             return self.c_flData.value, self._info[MEAS_ALIAS[meas]][1]
