@@ -28,7 +28,8 @@ MEAS_ALIAS = {'T': 'Temperature', 'P': 'Absolute Pressure', 'RH': 'Rel. Air Humi
 
 C_LANG_OFFSET = ct.c_int16(4096)  # English language-offset
 
-class GMH_Sensor():
+
+class GMHSensor:
     """
     A class to wrap around the low-level functions of GMH3x32E.dll.
 
@@ -67,9 +68,10 @@ class GMH_Sensor():
         self.c_status_msg = ct.create_string_buffer(70)
         self.c_error_msg = ct.create_string_buffer(70)
 
-        self.info = {}
+        self._info = {}  # Don't access directly - use get functions
 
-    def rtncode_to_errmsg(self, rtn_code):
+    @staticmethod
+    def rtncode_to_errmsg(rtn_code):
         """
         Translate a function's return code to a message-string.
 
@@ -218,9 +220,9 @@ class GMH_Sensor():
         units = []  # E.g. 'deg C', 'hPascal', ...
         statuses = []
 
-        if len(self.info) > 0:  # Device info already determined.
-            print('device info already determined.')
-            return self.info
+        if len(self._info) > 0:  # Device info already determined.
+            print('\nget_sensor_info(): device info already determined.')
+            return self._info
         else:
             # Find all channel-independent parameters
             self.get_type()
@@ -269,9 +271,31 @@ class GMH_Sensor():
                         channel += 1
 
                         self.demo = False  # If we've got this far we must have a fully-functioning instrument.
-                        print('get_sensor_info(): demo mode = {}'.format(self.demo))
-                self.info = dict(zip(measurements, zip(channels, units)))
-                return self.info
+                        # print('get_sensor_info(): demo mode = {}'.format(self.demo))
+                self._info = dict(zip(measurements, zip(channels, units)))
+                return self._info
+
+    def get_meas_attributes(self, meas):
+        """
+        Look up attributes associated with a type of measurement.
+
+        :param meas: Measurement-type alias (any key in MEAS_ALIAS dict) - a (unicode) string,
+        :return: Tuple consisting of the device channel (int) and measurement unit (unicode).
+        """
+        fail_rtn = (0, 'NO_UNIT')
+        try:
+            measurement = MEAS_ALIAS[meas]
+        except KeyError as msg:
+            print('{} - No known alias for {}.'.format(msg, meas))
+            return fail_rtn
+        else:
+            try:
+                chan_unit_str = self._info[measurement]
+            except KeyError as msg:
+                print("{} - measurement {} doesn't exist for this device.".format(msg, meas))
+                return fail_rtn
+            else:
+                return chan_unit_str
 
     def measure(self, meas):
         """
@@ -282,14 +306,14 @@ class GMH_Sensor():
 
         :returns a tuple: (<measurement as float>, <unit as (unicode) string>)
         """
-        if len(self.info) == 0:
+        if len(self._info) == 0:
             print('Measure(): No measurements available! - Check sensor is connected and ON.')
-            return (0, 'NO_UNIT')
-        elif MEAS_ALIAS[meas] not in self.info.keys():
+            return 0, 'NO_UNIT'
+        elif MEAS_ALIAS[meas] not in self._info.keys():
             print('Function', meas, 'not available!')
-            return (0, 'NO_UNIT')
+            return 0, 'NO_UNIT'
         else:
-            channel = self.info[MEAS_ALIAS[meas]][0]
+            channel = self._info[MEAS_ALIAS[meas]][0]
             c_chan = ct.c_short(channel)
             self.transmit(c_chan, TRANSMIT_CALLS['GetValue'])
-            return self.c_flData.value, self.info[MEAS_ALIAS[meas]][1]
+            return self.c_flData.value, self._info[MEAS_ALIAS[meas]][1]
