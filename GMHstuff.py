@@ -23,8 +23,9 @@ TRANSMIT_CALLS = {'GetValue': 0, 'GetStatus': 3, 'GetTypeCode': 12, 'GetMinRange
                   'GetDispUnitCode': 202, 'GetDispDecPoint': 204, 'GetChannelCount': 208, 'GetPowerOffTime': 222,
                   'SetPowerOffTime': 223, 'GetSoftwareInfo': 254}
 
-MEAS_ALIAS = {'T': 'Temperature', 'P': 'Absolute Pressure', 'RH': 'Rel. Air Humidity', 'T_dew': 'Dewpoint Temperature',
-              'T_wb': 'Wet Bulb Temperature', 'H_atm': 'Atmospheric Humidity', 'H_abs': 'Absolute Humidity'}
+MEAS_ALIAS = {'T': 'Temperature', 'P': 'Absolute Pressure', 'RH': 'Rel. Air Humidity',
+              'T_dew': 'Dewpoint Temperature', 'T_wb': 'Wet Bulb Temperature',
+              'H_atm': 'Atmospheric Humidity', 'H_abs': 'Absolute Humidity'}
 
 C_LANG_OFFSET = ct.c_int16(4096)  # English language-offset
 
@@ -189,8 +190,8 @@ class GMHSensor:
             type_str = c_type_str.value.decode('ISO-8859-1')
             assert self.error_code >= 1, 'GMHLIB.GMH_GetType() failed'
         except AssertionError as msg:
-            print('get_type():', msg, '{} "{}"'.format(self.error_code, type_str))
             type_str = 'UNKNOWN instrument type.'
+            print('get_type():', msg, '{} "{}"'.format(self.error_code, type_str))
         else:
             return type_str
 
