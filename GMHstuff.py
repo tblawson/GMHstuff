@@ -10,12 +10,13 @@ import os
 import ctypes as ct
 
 
-# os.path.join('C:', 'Users', 't.lawson', 'PycharmProjects', 'GMHstuff2')
-# Change PATH to wherever you keep GMH3x32E.dll:
-gmhlibpath = 'I:/MSL/Private/Electricity/Ongoing/OHM/Temperature_PRTs/GMHdll'
-os.environ['GMHPATH'] = gmhlibpath
-GMHpath = os.environ['GMHPATH']
-GMHLIB = ct.windll.LoadLibrary(os.path.join('GMHdll', 'GMH3x32E'))  # (os.path.join(GMHpath, 'GMH3x32E'))
+"""
+Ensure GMH_PATH environment variable is set to wherever you keep GMH3x32E.dll.
+(There's a copy at:
+    I:/MSL/Private/Electricity/Ongoing/OHM/Temperature_PRTs/GMHdll).
+"""
+GMHpath = os.getenv('GMH_PATH')
+GMHLIB = ct.windll.LoadLibrary(os.path.join(GMHpath, 'GMH3x32E'))
 
 # A (useful) subset of Transmit() function calls:
 TRANSMIT_CALLS = {'GetValue': 0, 'GetStatus': 3, 'GetTypeCode': 12, 'GetMinRange': 176, 'GetMaxRange': 177,
