@@ -399,7 +399,7 @@ class GMHSensor:
                 # Visit all the channels and note their capabilities:
                 channel = 0
                 while channel <= self.chan_count:
-                    print('\nget_sensor_info(): Testing channel {}...'.format(channel))
+                    print('get_sensor_info(): Testing channel {}...'.format(channel))
                     # Try reading a value, Write result to self.c_intData:
                     self.error_code = self.transmit(channel, 'GetValue')
                     if self.error_code < 0:
