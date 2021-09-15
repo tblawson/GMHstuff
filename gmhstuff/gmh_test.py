@@ -7,7 +7,7 @@ Updated to Python 3.7 17/03/2020
 @author: t.lawson
 """
 
-import gmhstuff as gmh
+import gmhstuff.gmh_fns as gmh
 
 
 # PORT = 10  # Change this to whatever port Windows assigns to your device

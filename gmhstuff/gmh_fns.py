@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-GMHstuff.py - required to access dll functions for GMH probes
+gmh_fns.py - required to access dll functions for GMH probes
 Created on Wed Jul 29 13:21:22 2015
 
 @author: t.lawson
@@ -13,9 +13,10 @@ import ctypes as ct
 """
 Ensure GMH_PATH environment variable is set to wherever you keep GMH3x32E.dll.
 (There's a copy at:
-    I:/MSL/Private/Electricity/Ongoing/OHM/Temperature_PRTs/GMHdll).
+    'G:/Shared drives/MSL - Electricity/Ongoing/OHM/Temperature_PRTs/GMHdll).'
 """
-GMHpath = os.getenv('GMH_PATH')
+# GMHpath = os.getenv('GMH_PATH')
+GMHpath = 'G:/Shared drives/MSL - Electricity/Ongoing/OHM/Temperature_PRTs/GMHdll'
 GMHLIB = ct.windll.LoadLibrary(os.path.join(GMHpath, 'GMH3x32E'))
 
 # A (useful) subset of Transmit() function calls:
