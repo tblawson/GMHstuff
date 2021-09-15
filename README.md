@@ -1,2 +1,2 @@
 # GMHstuff
-A wrapper around GMH functions defined in GMH3x32E.dll
+A wrapper around GMH functions defined in GMH3x32E.dll. Updated to Python 3.
