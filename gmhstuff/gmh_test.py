@@ -5,6 +5,9 @@ Created on Fri Feb 24 16:58:44 2017
 Updated to Python 3.7 17/03/2020
 
 @author: t.lawson
+
+This is a test script to illustrate some of the functions available in gmh_fns.py
+It assumes there is a GMH GFTB200 device connected (measures temperature, pressure & RH).
 """
 
 import gmhstuff.gmh_fns as gmh
@@ -26,7 +29,7 @@ for q in gmh.MEAS_ALIAS.keys():
     meas_unit = measurement[1]
     print('{:>20}{:>5}{:>10}{:>15}{:>15}'.format(quantity, attribs[0], val, attribs[1], meas_unit))
 
-print('\nMeas attributes:',GFTB200.get_meas_attributes('P'))
+print('\nMeas attributes:', GFTB200.get_meas_attributes('P'))
 
 print('\nTemperature:', GFTB200.measure('T'))
 
