@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-gmh_fns.py - required to access dll functions for GMH probes
+gmhstuff.py - required to access dll functions for GMH probes
 Created on Wed Jul 29 13:21:22 2015
 
 @author: t.lawson
