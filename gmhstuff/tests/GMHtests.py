@@ -1,6 +1,6 @@
 # GMHtests.py
 
-from gmhstuff import gmh_fns as gmh
+from gmhstuff import gmhstuff as gmh
 import pytest
 
 

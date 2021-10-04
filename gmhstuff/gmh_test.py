@@ -6,11 +6,11 @@ Updated to Python 3.7 17/03/2020
 
 @author: t.lawson
 
-This is a test script to illustrate some of the functions available in gmh_fns.py
+This is a test script to illustrate some of the functions available in gmhstuff.py
 It assumes there is a GMH GFTB200 device connected (measures temperature, pressure & RH).
 """
 
-import gmhstuff.gmh_fns as gmh
+import gmhstuff.gmhstuff as gmh
 
 
 # PORT = 10  # Change this to whatever port Windows assigns to your device
