@@ -7,5 +7,5 @@ setup(name='gmhstuff-tblawson',
       author='T Lawson',
       author_email='tim.lawson@measurement.govt.nz',
       license='GPLv3',
-      py_modules=['gmhstuff'],
+      py_modules=['gmh_fns'],
       zip_safe=False)
