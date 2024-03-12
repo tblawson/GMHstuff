@@ -227,7 +227,7 @@ class GMHSensor:
         Get instrument's status string.
 
         :param chan: instrument measurement channel (int)
-        :return: status message (unicode)
+        :return: status message (str)
         """
         # Get instrument status code -> self.c_intData:
         self.error_code = self.transmit(chan, 'GetStatus')
@@ -246,7 +246,7 @@ class GMHSensor:
         Get measurement unit for this channel
 
         :param chan: Instrument measurement channel (int)
-        :return: Measurement unit (unicode string)
+        :return: Measurement unit (str)
         """
         self.error_code = self.transmit(chan, 'GetUnitCode')
         c_unit_str = ct.create_string_buffer(10)
@@ -325,7 +325,7 @@ class GMHSensor:
         Get measurement unit for this channel
 
         :param chan: Instrument measurement channel (int)
-        :return: Display unit (unicode string)
+        :return: Display unit (str)
         """
         self.error_code = self.transmit(chan, 'GetDispUnitCode')
         c_unit_str = ct.create_string_buffer(10)
@@ -394,8 +394,8 @@ class GMHSensor:
 
         :returns
         self.info - a dictionary keyed by measurement string (eg: 'Temperature').
-        Values are tuples: (<address>, <measurement unit>),
-        where <address> is an int and <measurement unit> is a unicode string.
+        Values are tuples: (```address```, ```measurement unit```),
+        where ```address``` is an int and ```measurement unit``` is a str.
         """
         channels = []  # Between 1 and 99
         measurements = []  # E.g. 'Temperature', 'Absolute Pressure', ...
@@ -447,7 +447,7 @@ class GMHSensor:
         Look up attributes associated with a type of measurement.
 
         :param meas: Measurement-type alias (any key in MEAS_ALIAS dict) - a unicode string,
-        :return: Tuple consisting of the device channel (int) and measurement unit (unicode).
+        :return: Tuple consisting of the device channel (int) and measurement unit (str).
         """
         fail_rtn = (0, 'NO_UNIT')
         try:
@@ -471,7 +471,7 @@ class GMHSensor:
         :argument meas - an alias (as defined in MEAS_ALIAS) for the measurement type.
         meas is one of: 'T', 'P', 'RH', 'T_dew', 't_wb', 'H_atm' or 'H_abs'.
 
-        :returns a tuple: (<measurement as float>, <unit as unicode string>)
+        :returns a tuple: (```measurement (float)```, ```unit (str)```)
         """
         self.open_port()
         if len(self._info) == 0:
