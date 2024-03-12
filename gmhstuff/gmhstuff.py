@@ -13,10 +13,10 @@ import ctypes as ct
 """
 Ensure GMH_PATH environment variable is set to wherever you keep GMH3x32E.dll.
 (There's a copy at:
-    'G:/Shared drives/MSL - Electricity/Ongoing/OHM/Temperature_PRTs/GMHdll).'
+    'G:/Shared drives/MSL - Electricity - Ongoing/OHM/Temperature_PRTs/GMHdll).'
 """
 # GMHpath = os.getenv('GMH_PATH')
-GMHpath = 'G:/Shared drives/MSL - Electricity/Ongoing/OHM/Temperature_PRTs/GMHdll'
+GMHpath = 'G:/Shared drives/MSL - Electricity - Ongoing/OHM/Temperature_PRTs/GMHdll'
 GMHLIB = ct.windll.LoadLibrary(os.path.join(GMHpath, 'GMH3x32E'))
 
 # A (useful) subset of Transmit() function calls:
